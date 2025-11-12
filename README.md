@@ -27,3 +27,4 @@ NBA players will continue to earn significantly higher salaries than WNBA player
 - `One_time_scripts/`: used to perform a non-recurring task and ran once
 - `Results/`: results from statistical tests
 - `Utitlities/`: reusable functions and modules that perform general tasks
+- `Documentation/`: used to document any work or extra steps to keep track of throughout project
