@@ -20,6 +20,10 @@ Prediction:
 NBA players will continue to earn significantly higher salaries than WNBA players, but that WNBA salaries will be more evenly distributed and will represent a slightly larger share of league revenue in 2024–2025 compared to 2019–2020 due to the league’s recent growth in popularity
 
 ## Repository Structure
-- `code/`: All analysis scripts or quarto documents
-- `figures/`: tables, charts, visualizations
-- `data/`: salary data per league and derived and calculate varables
+- `Code/`: All analysis scripts or quarto documents
+- `Figures/`: tables, charts, visualizations
+- `Data/`: salary data per league and derived and calculate varables
+- `Experiments/`: trials and practice on model(s)
+- `One_time_scripts/`: used to perform a non-recurring task and ran once
+- `Results/`: results from statistical tests
+- `Utitlities/`: reusable functions and modules that perform general tasks
