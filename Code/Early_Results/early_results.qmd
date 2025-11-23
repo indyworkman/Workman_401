@@ -1,0 +1,197 @@
+---
+title: "Early_Results"
+format: html
+editor: visual
+---
+
+```{r}
+wnba <- read.csv("DA401/early_results/wnba_salaries_24_25_clean (version 1).xlsb.csv")
+nba <- read.csv("DA401/early_results/nba_salaries_24_25_clean (version 1).xlsb.csv")
+```
+
+Creating a table like baker had for WNBA and NBA salaries, representing top 5%, 10%, etc.
+
+NBA
+```{r}
+#set salaries from most to least
+nba_salaries <- sort(nba$Salary_USD, decreasing = TRUE)
+
+#% groups
+percentiles <- c(5, 10, 20, 30, 40, 50)
+
+#total payroll and total number of players
+total <- sum(nba_salaries, na.rm = TRUE)
+n <- length(nba_salaries)
+
+#create data frame
+results <- data.frame()
+
+#go through each percentile
+for (p in percentiles) {
+  cutoff <- ceiling(n * p / 100)
+  top_earnings <- sum(nba_salaries[1:cutoff], na.rm = TRUE)
+  share <- top_earnings / total * 100
+  
+  results <- rbind(
+    results,
+    data.frame(
+      `Percentage of highest earning NBA players` = paste0("Top ", p, "%"),
+      Earnings = paste0("$", format(round(top_earnings), big.mark = ",")),
+      `Percentage of total league payroll` = paste0(round(share), "%")
+    )
+  )
+}
+
+#Print
+print(results)
+```
+
+WNBA
+-still need to seperate out waived, unprotected, 7 day contract
+```{r}
+#set salaries from most to least
+wnba_salaries <- sort(wnba$Salary_USD, decreasing = TRUE)
+
+#% groups
+percentiles2 <- c(5, 10, 20, 30, 40, 50)
+
+#total payroll and total number of players
+total2 <- sum(wnba_salaries, na.rm = TRUE)
+n2 <- length(wnba_salaries)
+
+#create data frame
+results2 <- data.frame()
+
+#go through each percentile
+for (p in percentiles2) {
+  cutoff <- ceiling(n2 * p / 100)
+  top_earnings <- sum(wnba_salaries[1:cutoff], na.rm = TRUE)
+  share <- top_earnings / total2 * 100
+  
+  results2 <- rbind(
+    results2,
+    data.frame(
+      `Percentage of highest earning WNBA players` = paste0("Top ", p, "%"),
+      Earnings = paste0("$", format(round(top_earnings), big.mark = ",")),
+      `Percentage of total league payroll` = paste0(round(share), "%")
+    )
+  )
+}
+
+#Print
+print(results2)
+```
+
+
+Calculating Gini Coeffincients
+
+```{r}
+install.packages("ineq")
+library(ineq)
+```
+
+NBA
+-High inequality
+```{r}
+gini_nba <- ineq(nba_salaries, type = "Gini")
+gini_nba
+```
+
+WNBA
+-Moderate inequality
+```{r}
+gini_wnba <- ineq(wnba_salaries, type = "Gini")
+gini_wnba
+```
+
+Table of Gini
+```{r}
+data.frame(
+  League = c("NBA", "WNBA"),
+  Gini_Coefficient = c(gini_nba, gini_wnba)
+)
+```
+
+Lorenze Curve
+
+NBA
+```{r}
+plot(Lc(nba_salaries), 
+     main = "Lorenz Curve for NBA Salaries", 
+     xlab = "Cumulative Share of Players",
+     ylab = "Cumulative Share of Total Salaries",
+     col = "blue", 
+     lwd = 2)
+```
+
+WNBA
+```{r}
+plot(Lc(wnba_salaries), 
+     main = "Lorenz Curve for WNBA Salaries", 
+     xlab = "Cumulative Share of Players",
+     ylab = "Cumulative Share of Total Salaries",
+     col = "blue", 
+     lwd = 2)
+```
+
+League Exploring
+
+
+League Revenue Comparison by Year
+
+```{r}
+leagues <- read.csv("league_2024_2025_variables.csv")
+str(leagues)
+unique(leagues$Year)
+unique(leagues$League)
+
+leagues$Salary_Share_Revenue <- 
+  (leagues$Total_Payroll_USD / leagues$League_Revenue_Approx) * 100
+
+
+ggplot(leagues, aes(x = Year, y = Salary_Share_Revenue, fill = League)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Player Salaries as % of League Revenue",
+    y = "% of League Revenue to Salaries",
+    x = "Season"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal()
+```
+NBA: 
+2019-2020 about 44% of revenue goes to salary
+2024-2025 about 46% of revenue goes to salary
+
+WNBA:
+2019-2020 about 12& of revenue goes to salary
+2024-2025 about 8% of revenue goes to salary
+
+
+project what WNBA salaries would be if WNBA players received the same revenue share as NBA players
+```{r}
+#2019-2020
+leagues_1920 <- subset(leagues, Year == "2019-2020")
+
+nba_share <- leagues_1920$Salary_Share_Revenue[leagues_1920$League == "NBA"]
+wnba_revenue <- leagues_1920$League_Revenue_Approx[leagues_1920$League == "WNBA"]
+
+wnba_equitable_payroll <- nba_share / 100 * wnba_revenue
+wnba_equitable_avg_salary1 <- wnba_equitable_payroll / leagues_1920$Num_Players[leagues_1920$League == "WNBA"]
+
+wnba_equitable_avg_salary1
+
+#2024-2025
+leagues_2425 <- subset(leagues, Year == "2024-2025")
+
+nba_share <- leagues_2425$Salary_Share_Revenue[leagues_2425$League == "NBA"]
+wnba_revenue <- leagues_2425$League_Revenue_Approx[leagues_2425$League == "WNBA"]
+
+wnba_equitable_payroll <- nba_share / 100 * wnba_revenue
+wnba_equitable_avg_salary <- wnba_equitable_payroll / leagues_2425$Num_Players[leagues_2425$League == "WNBA"]
+
+wnba_equitable_avg_salary
+```
+If WNBA players were paid at the same revenue-share rate as NBA players in the 2019-2020 season, their average salary would be around $398,186 instead of around $73,738.
+
+If WNBA players were paid at the same revenue-share rate as NBA players in the 2024-2025 season, their average salary would be around $720,416.6 instead of around $113,826.77.
