@@ -1,0 +1,293 @@
+---
+title: "first_draft"
+format: html
+editor: visual
+---
+
+load data
+```{r}
+library(readr)
+library(tidyverse)
+
+wnba <- read_csv("/home/workma_i1/DA401/first_draft/full_wnba_data.csv")
+nba <- read.csv("/home/workma_i1/DA401/first_draft/full_nba_data.csv")
+stats <- read.csv("/home/workma_i1/DA401/first_draft/NBA Player Stats(1950 - 2022).csv")
+```
+
+Creating a table like baker had for WNBA and NBA salaries, representing top 5%, 10%, etc.
+
+NBA
+```{r}
+# most to least
+nba_salaries <- sort(nba$AAV, decreasing = TRUE)
+
+#groups
+percentiles <- c(5, 10, 20, 30, 40, 50)
+
+#total payroll and total number of players
+total <- sum(nba_salaries, na.rm = TRUE)
+n <- length(nba_salaries)
+
+results <- data.frame()
+
+for (p in percentiles) {
+  cutoff <- ceiling(n * p / 100)
+  top_earnings <- sum(nba_salaries[1:cutoff], na.rm = TRUE)
+  share <- top_earnings / total * 100
+  
+  results <- rbind(
+    results,
+    data.frame(
+      `Percentage of highest earning NBA players` = paste0("Top ", p, "%"),
+      Earnings = paste0("$", format(round(top_earnings), big.mark = ",")),
+      `Percentage of total league payroll` = paste0(round(share), "%")
+    )
+  )
+}
+
+print(results)
+```
+
+WNBA
+```{r}
+#most to least
+wnba_salaries <- sort(wnba$AAV, decreasing = TRUE)
+
+#groups
+percentiles2 <- c(5, 10, 20, 30, 40, 50)
+
+#total payroll and total number of players
+total2 <- sum(wnba_salaries, na.rm = TRUE)
+n2 <- length(wnba_salaries)
+
+results2 <- data.frame()
+
+for (p in percentiles2) {
+  cutoff <- ceiling(n2 * p / 100)
+  top_earnings <- sum(wnba_salaries[1:cutoff], na.rm = TRUE)
+  share <- top_earnings / total2 * 100
+  
+  results2 <- rbind(
+    results2,
+    data.frame(
+      `Percentage of highest earning WNBA players` = paste0("Top ", p, "%"),
+      Earnings = paste0("$", format(round(top_earnings), big.mark = ",")),
+      `Percentage of total league payroll` = paste0(round(share), "%")
+    )
+  )
+}
+
+print(results2)
+```
+
+Calculating Gini Coeffincients
+
+```{r}
+install.packages("ineq")
+library(ineq)
+```
+
+NBA
+-High inequality
+```{r}
+gini_nba <- ineq(nba_salaries, type = "Gini")
+gini_nba
+```
+
+WNBA
+-low inequality
+```{r}
+gini_wnba <- ineq(wnba_salaries, type = "Gini")
+gini_wnba
+```
+
+
+Table of Gini
+```{r}
+data.frame(
+  League = c("NBA", "WNBA"),
+  Gini_Coefficient = c(gini_nba, gini_wnba)
+)
+```
+Testing Significance
+```{r}
+gini <- function(x) {
+  x <- sort(x)
+  n <- length(x)
+  (2*sum(x * seq_len(n))/sum(x) - (n+1)) / n
+}
+
+bootstrap_gini <- function(x, B=5000) {
+  n <- length(x)
+  replicate(B, gini(sample(x, n, replace = TRUE)))
+}
+```
+
+```{r}
+boot_wnba <- bootstrap_gini(wnba_salaries)
+
+#money too large
+nba_salaries_convert <- nba_salaries / 1e6   # convert to millions
+
+boot_nba  <- bootstrap_gini(nba_salaries_convert)
+```
+
+```{r}
+ci_wnba <- quantile(boot_wnba, c(0.025, 0.975))
+ci_nba  <- quantile(boot_nba,  c(0.025, 0.975))
+
+cat("WNBA Gini:", gini_wnba, "CI:", ci_wnba, "\n")
+cat("NBA Gini :", gini_nba,  "CI:", ci_nba, "\n")
+```
+- The WNBA salary has a Gini coefficient of 0.26, with a 95% confidence interval from 0.25 to 0.27
+- shows a low salary inequality and the confidence interval shows the estimate is statistically precise
+- The NBA salary has a Gini coefficient of 0.69, with a 95% confidence interval from 0.68 to 0.70
+- shows very high salary inequality and the estimate is statistically precise.
+
+```{r}
+#Difference test
+boot_diff <- boot_wnba - boot_nba
+ci_diff <- quantile(boot_diff, c(0.025, 0.975))
+
+cat("Difference (WNBA - NBA):", gini_wnba - gini_nba,
+    "CI:", ci_diff, "\n")
+```
+- The difference between the WNBA and NBA Gini coefficients is –0.42, with a 95% confidence interval from –0.44 to –0.40
+- statistically significant difference in salary inequality between the NBA and WNBA. WNBA’s Gini coefficient about 0.39 lower than the NBA’s. 95% CI of –0.44, –0.40
+
+
+Lorenz Curve
+
+NBA
+```{r}
+plot(Lc(nba_salaries), 
+     main = "Lorenz Curve for NBA Salaries", 
+     xlab = "Cumulative Share of Players",
+     ylab = "Cumulative Share of Total Salaries",
+     col = "blue", 
+     lwd = 2)
+```
+
+WNBA
+```{r}
+plot(Lc(wnba_salaries), 
+     main = "Lorenz Curve for WNBA Salaries", 
+     xlab = "Cumulative Share of Players",
+     ylab = "Cumulative Share of Total Salaries",
+     col = "blue", 
+     lwd = 2)
+```
+
+NBA Regression Model
+
+```{r}
+stats_clean <- stats %>%
+  mutate(
+    G   = as.numeric(G),
+    PTS = as.numeric(PTS),
+    TRB = as.numeric(TRB),
+    AST = as.numeric(AST),
+    STL = as.numeric(STL),
+    BLK = as.numeric(BLK),
+    TOV = as.numeric(TOV),
+    Age = as.numeric(Age)
+  ) %>%
+  mutate(
+    PTS_per_g = PTS / G,
+    TRB_per_g = TRB / G,
+    AST_per_g = AST / G,
+    STL_per_g = STL / G,
+    BLK_per_g = BLK / G,
+    TOV_per_g = TOV / G
+  ) %>%
+  select(-Pos) #get rid of this column in stats because it repeats in both data sets
+```
+
+```{r}
+# 3 year performance average before each contract
+contracts_with_perf <- nba %>%
+  mutate(
+    Season_start = Start - 3,
+    Season_end   = Start - 1
+  ) %>%
+  left_join(stats_clean, by = "Player") %>%
+  filter(
+    Season >= Season_start,
+    Season <= Season_end
+  ) %>%
+  group_by(Player, Start, Pos, AAV) %>%
+  summarise(
+    PTS_per_g = mean(PTS_per_g, na.rm = TRUE),
+    TRB_per_g = mean(TRB_per_g, na.rm = TRUE),
+    AST_per_g = mean(AST_per_g, na.rm = TRUE),
+    STL_per_g = mean(STL_per_g, na.rm = TRUE),
+    BLK_per_g = mean(BLK_per_g, na.rm = TRUE),
+    TOV_per_g = mean(TOV_per_g, na.rm = TRUE),
+    Age_last_season = max(Age, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(AAV), AAV > 0)    #got this line from chat after an error
+```
+
+```{r}
+# Performance Index
+model_data <- contracts_with_perf %>%
+  mutate(
+    z_PTS = scale(PTS_per_g),
+    z_TRB = scale(TRB_per_g),
+    z_AST = scale(AST_per_g),
+    z_STL = scale(STL_per_g),
+    z_BLK = scale(BLK_per_g),
+    z_TOV = scale(TOV_per_g),
+
+    PerfIndex = z_PTS + z_TRB + z_AST + z_STL + z_BLK - z_TOV,
+    log_AAV = log(AAV)
+  )
+```
+
+```{r}
+# Run Regression
+nba_model <- lm(log_AAV ~ PerfIndex + Age_last_season + factor(Pos),
+                data = model_data)
+
+summary(nba_model)
+```
+
+- Performance strongly predicts salary
+- PerfIndex coefficient = 0.25645 p < 2e-16
+- Players who perform better get paid more
+- one unit increase in performance is connected with a 29% increase in salary(exp(0.256) ≈ 1.29)
+- strongest finding.
+
+- Older players get paid slightly less
+- Age = -0.0204, p = 0.03
+- small but statistically significant
+
+-Position mostly doesn’t matter
+- Almost all the position coefficients are NOT significant
+- exception is Shooting guards -> Coefficient = +0.312, p = 0.0056 which is significant
+- all the other positions could be random noise
+
+- explains 12% of the variation in salary
+- NBA salaries are influenced by performance but other things not included like media value, injuries, team strategy, and others. This is normal for salary models.
+
+Scatter plot of Regression
+```{r}
+library(ggplot2)
+
+ggplot(model_data, aes(x = PerfIndex, y = log_AAV)) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(method = "lm", color = "blue", se = TRUE) +
+  labs(
+    title = "NBA Salary vs. Performance Index",
+    x = "Performance Index",
+    y = "Log Salary"
+  ) +
+  theme_minimal()
+```
+- positive relationship between player performance and salary in the NBA
+- lower performing players show more salary variation
+- the plot supports the regression finding 
+
+
+
