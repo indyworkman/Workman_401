@@ -1,0 +1,51 @@
+---
+title: "WNBA_Stats_cleaning"
+format: html
+editor: visual
+---
+
+```{r}
+library(readxl)
+WNBA_Stats2025 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2025.xlsx")
+WNBA_Stats2024 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2024.xlsx")
+WNBA_Stats2023 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2023.xlsx")
+WNBA_Stats2022 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2022.xlsx")
+WNBA_Stats2021 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2021.xlsx")
+WNBA_Stats2020 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2020.xlsx")
+WNBA_Stats2019 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2019.xlsx")
+WNBA_Stats2018 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2018.xlsx")
+WNBA_Stats2017 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2017.xlsx")
+WNBA_Stats2016 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2016.xlsx")
+WNBA_Stats2015 <- read_excel("/home/workma_i1/DA401/Data Cleaning/WNBA_Stats2015.xlsx")
+```
+
+
+```{r}
+library(dplyr)
+
+years <- 2015:2025  
+
+dfs <- lapply(years, function(y) {
+  df <- get(paste0("WNBA_Stats", y))  
+  df$Season <- y                      
+  df
+})
+```
+
+```{r}
+WNBA_all <- bind_rows(dfs)
+```
+
+```{r}
+table(WNBA_all$Season)
+
+```
+
+```{r}
+view(WNBA_all)
+```
+
+```{r}
+write.csv(WNBA_all, "WNBA_all.csv", row.names = FALSE)
+```
+
