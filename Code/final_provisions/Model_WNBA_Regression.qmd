@@ -1,0 +1,146 @@
+---
+title: "test"
+format: html
+editor: visual
+---
+
+Load Packages and data
+```{r}
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+
+WNBA_stats <- read_csv("DA401/Final_Draft/WNBA_all.csv")
+wnba <- read_csv("/home/workma_i1/DA401/first_draft/full_wnba_data.csv")
+```
+
+```{r}
+stats_clean <- WNBA_all %>%
+  filter(Season >= 2015, Season <= 2024) %>%   # only seasons you care about
+  mutate(
+    Season = as.numeric(Season),
+    G   = as.numeric(GP),
+    PTS = as.numeric(PTS),
+    TRB = as.numeric(REB),
+    AST = as.numeric(AST),
+    STL = as.numeric(STL),
+    BLK = as.numeric(BLK),
+    TOV = as.numeric(TOV)
+  ) %>%
+  mutate(
+    PTS_per_g = PTS / G,
+    TRB_per_g = TRB / G,
+    AST_per_g = AST / G,
+    STL_per_g = STL / G,
+    BLK_per_g = BLK / G,
+    TOV_per_g = TOV / G
+  )
+```
+
+```{r}
+nrow(stats_clean)     # should be >> 57
+```
+
+```{r}
+contracts_with_perf2 <- wnba %>%
+  left_join(stats_clean, by = "Player") %>%
+  group_by(Player, Start, Pos, AAV) %>%
+  summarise(contracts_with_perf2)
+```
+
+```{r}
+panel_data <- stats_clean %>%
+  left_join(
+    wnba %>% select(Player, Start, End, Pos, AAV, Age_At_Signing),
+    by = "Player"
+  )
+```
+
+```{r}
+panel_data <- panel_data %>%
+  mutate(
+    Age = ifelse(
+      !is.na(Age_At_Signing) & !is.na(Start),
+      Age_At_Signing - (Start - Season),
+      NA_real_
+    )
+  )
+```
+
+```{r}
+panel_data2 <- stats_clean %>%
+  left_join(
+    wnba %>% select(Player, Start, End, Pos, AAV, Age_At_Signing),
+    by = "Player"
+  ) %>%
+  # 2) Compute age in each season (where we can)
+  mutate(
+    Age = ifelse(
+      !is.na(Age_At_Signing) & !is.na(Start),
+      Age_At_Signing - (Start - Season),
+      NA_real_
+    )
+  ) %>%
+  # 3) Compute z-scores and performance index
+  mutate(
+    z_PTS = as.numeric(scale(PTS_per_g)),
+    z_TRB = as.numeric(scale(TRB_per_g)),
+    z_AST = as.numeric(scale(AST_per_g)),
+    z_STL = as.numeric(scale(STL_per_g)),
+    z_BLK = as.numeric(scale(BLK_per_g)),
+    z_TOV = as.numeric(scale(TOV_per_g)),
+    
+    PerfIndex = z_PTS + z_TRB + z_AST + z_STL + z_BLK - z_TOV
+  )
+```
+
+
+```{r}
+model_data <- panel_data2 %>%
+  filter(!is.na(AAV), AAV > 0) %>%  # only rows with contract info
+  mutate(
+    log_AAV = log(AAV)
+  ) %>%
+  filter(
+    is.finite(log_AAV),
+    !is.na(PerfIndex),
+    !is.na(Age),
+    !is.na(Pos)
+  )
+```
+
+```{r}
+wnba_model <- lm(
+  log_AAV ~ PerfIndex + Age + factor(Pos),
+  data = model_data
+)
+
+summary(wnba_model)
+```
+
+
+```{r}
+ggplot(model_data, aes(x = PerfIndex, y = log_AAV)) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(method = "lm", color = "blue", se = TRUE) +
+  labs(
+    title = "WNBA Salary vs. Performance Index",
+    x = "Performance Index",
+    y = "Log Salary"
+  ) +
+  theme_minimal()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
